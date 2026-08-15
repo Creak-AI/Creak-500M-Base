@@ -1,0 +1,8 @@
+# Install CUDA torch on the L40S box first, for example:
+#   pip install torch --index-url https://download.pytorch.org/whl/cu124
+torch>=2.2
+datasets>=2.20
+tokenizers>=0.19
+transformers>=4.44
+tqdm>=4.66
+numpy>=1.26

@@ -1,0 +1,558 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>Creak 500M L40S</title>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<style>
+:root {
+  --fg:#E4E4E4EB; --fg2:#E4E4E48D; --fg3:#E4E4E45E; --fg4:#E4E4E442;
+  --bg:#181818; --fill1:#E4E4E430; --fill2:#E4E4E41E; --fill3:#E4E4E411;
+  --stroke:#E4E4E433; --stroke2:#E4E4E41F; --accent:#599CE7;
+  --green:#3FA266; --blue:#7BAFE9; --orange:#DD7F76; --red:#FC6B83;
+  --info:#2E79B5; --warn:#E8C030; --ok:#1F8A65;
+}
+* { box-sizing: border-box; }
+html, body {
+  margin: 0; background: var(--bg); color: var(--fg);
+  font-family: ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+  font-size: 14px; line-height: 20px;
+}
+.canvas { width: min(840px, 100%); margin: 0 auto; padding: 20px 24px 48px; display: flex; flex-direction: column; gap: 24px; }
+h1 { font-size: 24px; line-height: 30px; font-weight: 600; margin: 0; }
+h2 { font-size: 18px; line-height: 24px; font-weight: 600; margin: 0; }
+h3 { font-size: 16px; line-height: 22px; font-weight: 600; margin: 0; }
+.muted { color: var(--fg2); }
+.dim { color: var(--fg3); font-size: 12px; line-height: 16px; }
+.row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.stack { display: flex; flex-direction: column; gap: 8px; }
+.stack-4 { display: flex; flex-direction: column; gap: 4px; }
+.grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+.hr { height: 1px; background: var(--stroke); border: 0; }
+.pill { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 9999px; font-size: 12px; line-height: 16px; background: var(--fill1); color: var(--fg2); }
+.pill-ok { background: #3FA26633; color: var(--green); }
+.pill-info { background: #599CE733; color: var(--accent); }
+.pill-warn { background: #F1B46733; color: #F1B467; }
+.pill-dead { background: #FC6B8333; color: var(--red); }
+.stat-v { font-size: 24px; line-height: 30px; font-weight: 600; }
+.stat-l { font-size: 12px; line-height: 16px; color: var(--fg2); margin-top: 2px; }
+.stat-ok .stat-v { color: var(--green); }
+.callout { border: 1px solid var(--stroke); border-radius: 6px; padding: 12px 14px; background: var(--fill3); border-left: 3px solid var(--accent); }
+.callout-ok { border-left-color: var(--green); }
+.callout-t { font-weight: 600; margin-bottom: 4px; }
+.callout-b { color: var(--fg2); }
+.usage { display: flex; flex-direction: column; gap: 6px; }
+.usage-lab { display: flex; justify-content: space-between; gap: 12px; font-size: 12px; color: var(--fg2); }
+.usage-track { height: 8px; background: var(--fill1); border-radius: 9999px; overflow: hidden; }
+.usage-fill { height: 100%; border-radius: 9999px; }
+.tbl { border: 1px solid var(--stroke); border-radius: 6px; overflow: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { text-align: left; font-weight: 600; padding: 8px 10px; background: var(--fill2); border-bottom: 1px solid var(--stroke); color: var(--fg2); font-size: 12px; }
+td { padding: 7px 10px; border-bottom: 1px solid var(--stroke2); vertical-align: top; }
+tr.stripe td { background: var(--fill3); }
+tr:last-child td { border-bottom: 0; }
+.chart { display: block; width: 100%; }
+.tick { fill: #E4E4E45E; font-size: 10px; font-family: ui-sans-serif, system-ui, sans-serif; }
+.dag { display: flex; align-items: center; padding: 8px 0 20px; }
+.dag-n { flex: 0 0 108px; height: 40px; border-radius: 4px; background: var(--fill3); border: 1px solid var(--stroke2); display: flex; align-items: center; justify-content: center; font-size: 11px; text-align: center; padding: 0 4px; }
+.dag-e { flex: 1; height: 1.25px; background: var(--stroke); min-width: 8px; }
+.dag-cap { text-align: center; color: var(--fg3); font-size: 10px; margin-top: -12px; }
+.logbox { font-family: ui-monospace, Consolas, monospace; font-size: 11px; line-height: 16px; color: var(--fg2); background: var(--fill3); border: 1px solid var(--stroke); border-radius: 6px; padding: 10px 12px; max-height: 140px; overflow: auto; white-space: pre-wrap; word-break: break-all; }
+@media (max-width: 720px) {
+  .grid-4, .grid-3, .grid-2 { grid-template-columns: 1fr 1fr; }
+  .canvas { padding: 16px; }
+}
+</style>
+</head>
+<body>
+<div class="canvas">
+  <div class="stack">
+    <div class="row">
+      <h1>Creak 500M L40S train</h1>
+      <span id="pill-run" class="pill">idle</span>
+      <span id="pill-ws" class="pill">ws connecting</span>
+    </div>
+    <div class="muted" id="subhead">Waiting for checkpoints/train.log …</div>
+  </div>
+
+  <div class="callout callout-ok">
+    <div class="callout-t" id="callout-t">Live dashboard</div>
+    <div class="callout-b" id="callout-b">Tailing the train log over WebSocket. Architecture below is this run’s HCRM; charts update as steps land.</div>
+  </div>
+
+  <div class="grid-4">
+    <div><div class="stat-v" id="s-step">—</div><div class="stat-l">Optimizer steps</div></div>
+    <div class="stat-ok"><div class="stat-v" id="s-loss">—</div><div class="stat-l">Loss (last log)</div></div>
+    <div><div class="stat-v" id="s-ppl">—</div><div class="stat-l">Perplexity (last log)</div></div>
+    <div><div class="stat-v" id="s-left">—</div><div class="stat-l">Wall clock remaining</div></div>
+  </div>
+  <div class="grid-4">
+    <div><div class="stat-v" id="s-tok">—</div><div class="stat-l">Packed tokens seen</div></div>
+    <div><div class="stat-v" id="s-tps">—</div><div class="stat-l">Tokens / sec</div></div>
+    <div><div class="stat-v" id="s-tpsm">—</div><div class="stat-l">Run-mean tokens / sec</div></div>
+    <div><div class="stat-v" id="s-rss">—</div><div class="stat-l">Process RSS</div></div>
+  </div>
+
+  <div class="usage" id="u-wall"></div>
+  <div class="usage" id="u-epoch"></div>
+  <div class="usage" id="u-warm"></div>
+
+  <div class="logbox" id="logbox"></div>
+
+  <hr class="hr"/>
+  <h2>Loss and perplexity</h2>
+  <div class="muted">Logged every 10 optimizer steps. Loss is next-token CE on assistant tokens plus the closing end marker only. Source: train.log, live.</div>
+  <div id="c-loss"></div>
+  <div class="dim">Optimizer step</div>
+  <div id="c-ppl"></div>
+  <div class="dim">Perplexity from step 1k onward (early random softmax is ~8k). Best so far: <span id="best-ppl">—</span></div>
+
+  <h3>Loss milestones</h3>
+  <div class="tbl" id="t-miles"></div>
+
+  <div class="grid-3">
+    <div class="stack-4"><h3>Rolling loss</h3><div id="roll"></div></div>
+    <div class="stack-4"><h3>Distribution</h3><div id="dist"></div></div>
+    <div class="stack-4"><h3>Schedule</h3><div id="sched"></div></div>
+  </div>
+
+  <hr class="hr"/>
+  <h2>Throughput</h2>
+  <div class="muted">Tokens/sec = 10 × batch × seq per log window. Live from the current run.</div>
+  <div id="c-tps"></div>
+  <div class="tbl" id="t-tps"></div>
+
+  <hr class="hr"/>
+  <h2>HCRM architecture</h2>
+  <div class="muted">Hierarchical Channel-Routed Memory. This run’s encoder is the L40S 500M model in hcrm/model.py and hcrm/routing.py. There is no global self-attention. Sequence mixing is O(T) local convolution; long-range / topical memory is a bank of 512 channel FFN rows selected by a 1-D locality-sensitive router.</div>
+  <div class="callout">
+    <div class="callout-t">Design invariant</div>
+    <div class="callout-b">Nearby semantics should land on nearby channel rows. A learned scalar routing index u in (0, 1) is compared to equally spaced bucket centers with an RBF (sigma = 0.08). Channelites are coarse ranges; channels are fine rows inside those ranges. Discrete routing uses temperature tau (train anneal 1.2 to 0.3, infer 0.1). Train is dense softmax over all 512 channels; infer is top-8.</div>
+  </div>
+  <div class="grid-4">
+    <div><div class="stat-v" id="a-params">500M</div><div class="stat-l">Unique params (tied embed)</div></div>
+    <div><div class="stat-v">O(T)</div><div class="stat-l">Mix cost vs attention O(T²)</div></div>
+    <div><div class="stat-v" id="a-lcc">8 / 64 / 512</div><div class="stat-l">Layers / channelites / channels</div></div>
+    <div><div class="stat-v">13 tok</div><div class="stat-l">Conv receptive field per mix</div></div>
+  </div>
+  <h3>Forward pass</h3>
+  <div class="dag">
+    <div class="dag-n">input ids</div><div class="dag-e"></div>
+    <div class="dag-n">tied embed</div><div class="dag-e"></div>
+    <div class="dag-n">RoPE</div><div class="dag-e"></div>
+    <div class="dag-n">8× HCRM block</div><div class="dag-e"></div>
+    <div class="dag-n">final RMSNorm</div><div class="dag-e"></div>
+    <div class="dag-n">tied LM head</div>
+  </div>
+  <div class="dag-cap">All 8 blocks share one HierarchicalRouter and one ChannelBank</div>
+  <div class="tbl" id="t-arch-fwd"></div>
+
+  <h3>One HCRM block</h3>
+  <div>Residual scale is 0.5 on both branches so an untrained residual does not explode. Mix is the only left-to-right sequence operator. Channels are position-wise (no token-token attention).</div>
+  <div class="tbl" id="t-block"></div>
+
+  <h3>Causal local mix (replaces attention)</h3>
+  <div class="grid-2">
+    <div class="tbl" id="t-mix"></div>
+    <div class="stack">
+      <div>Eight stacked mix layers still only cover a local window of tens of tokens, not the full 2048. Anything farther must be stored in the channel bank or the external runtime table — that is the point of HCRM versus a Transformer.</div>
+      <div class="muted">Mix params per layer: conv 4,096 + gate 262,656 + out 262,656 = 529,408. Eight layers: 4,235,264.</div>
+    </div>
+  </div>
+
+  <h3>Hierarchical router</h3>
+  <div>Per token, Linear(d→1) produces u = sigmoid(key(x)) in (0, 1). That scalar is scored against channel and channelite centers with RBF logits. Parent channelite mass is log-added so a token cannot easily jump outside its coarse range. Train uses dense softmax; infer uses top-8.</div>
+  <div class="tbl" id="t-router"></div>
+  <div class="muted">Train gates = softmax((RBF_ch + refine(x) + log(parent)) / tau). Router params: 296,001.</div>
+
+  <h3>Channel bank (the memory matrices)</h3>
+  <div>Independent SiLU FFNs packed as W1[c,d,f], W2[c,f,d]. Output is sum_c gates[b,t,c] · FFN_c(h[b,t]). Bank is shared across all 8 layers — one memory, eight reads. This is where almost all 500M parameters live.</div>
+  <div class="grid-2">
+    <div class="tbl" id="t-bank"></div>
+    <div class="tbl" id="t-exec"></div>
+  </div>
+  <div id="c-params"></div>
+  <div class="dim">Unique count skips the tied LM head (same storage as embed). Channel bank 470,482,944 + embed 25,165,824 + mix 4,235,264 + router 296,001 + norms 8,704 = 500,188,737.</div>
+
+  <h3>What is not in the weights</h3>
+  <div>At chat time the encoder is frozen. New facts go to runtime/table.jsonl. Retrieval score is 0.50 cosine + 0.20 RBF(u) + 0.15 recency (12h half-life) + 0.15 keyword overlap. Run /forget after switching checkpoints.</div>
+
+  <h3>Chat template and loss mask</h3>
+  <div>Every train/infer sequence is Creak-formatted. Loss is assistant tokens plus the assistant’s closing end marker; system, user, and BOS are labeled −100.</div>
+  <div class="tbl" id="t-lossmask"></div>
+
+  <h3>Train schedule (this job)</h3>
+  <div class="grid-2">
+    <div class="tbl" id="t-knob"></div>
+    <div class="tbl" id="t-train"></div>
+  </div>
+  <h3>Checkpoint</h3>
+  <div class="tbl" id="t-ckpt"></div>
+
+  <hr class="hr"/>
+  <h2>Routing this run</h2>
+  <div class="muted">Live router stats from train.log, last 8 tokens of each window. u is the mean routing index.</div>
+  <div class="grid-2">
+    <div id="c-cite"></div>
+    <div class="stack">
+      <div class="tbl" id="t-route"></div>
+      <div class="dim" id="route-note"></div>
+    </div>
+  </div>
+
+  <hr class="hr"/>
+  <h2>Corpus</h2>
+  <div class="muted" id="corpus-note">data/creak_mix.jsonl · mixed Creak chats packed at 1024. GSM8K-think is a minority and shuffled in.</div>
+  <div id="c-corpus"></div>
+  <div class="tbl" id="t-corpus"></div>
+</div>
+<script>
+const COLORS = { info:"#2E79B5", warn:"#E8C030", ok:"#1F8A65", seq:["#2E79B5","#1F8A65","#7B64B8","#C85898","#F0A040","#5A6CC0"] };
+const CORPUS = [
+  ["smol-smoltalk",25000,"34.4%","Small-model chat backbone"],
+  ["no_robots",9500,"13.1%","Human-written instructions"],
+  ["metamath",8000,"11.0%","Math CoT, no think tags"],
+  ["gsm8k think",7473,"10.3%","Think-tagged arithmetic"],
+  ["openhermes",4000,"5.5%","High-quality knowledge SFT"],
+  ["systemchats",4000,"5.5%","System-style chat"],
+  ["tinystories",3000,"4.1%","Fluent short stories"],
+  ["numina CoT",2500,"3.4%","Harder math CoT"],
+  ["everyday",2260,"3.1%","Greetings / small talk"],
+  ["rewrite+sum+code",6000,"8.2%","Supplementary skills"],
+  ["seed Q&A",1000,"1.4%","Gold greetings / arithmetic"],
+];
+
+let S = { points: [], status: "idle", last: null, best: null, cites: [0,0,0,0], ch_top: {}, config: null, left0: 0, packs: 0, seq: 0, batch_size: 4, steps_per_epoch: 9851, warmup_steps: 18914, params: 1646349, until: "", lines: [], ckpt: null, batch: "4x1", threads: 10, chat_until: "", train_start: "" };
+
+function fmt(n, d=0) {
+  if (n == null || Number.isNaN(n)) return "—";
+  if (Math.abs(n) >= 1e6) return (n/1e6).toFixed(1) + "M";
+  if (Math.abs(n) >= 1000) return (n/1000).toFixed(d === 0 ? 1 : d) + "k";
+  return d ? n.toFixed(d) : String(Math.round(n));
+}
+function sci(n) {
+  if (n == null) return "—";
+  return n.toExponential(2).replace("e","e");
+}
+function downsample(arr, n=180) {
+  if (arr.length <= n) return arr.map((v,i)=>({i, v, src:i}));
+  const out = [];
+  for (let k = 0; k < n-1; k++) {
+    const src = Math.round(k * (arr.length-1) / (n-1));
+    out.push({ i:k, v: arr[src], src });
+  }
+  out.push({ i:n-1, v: arr[arr.length-1], src: arr.length-1 });
+  return out;
+}
+function lineChart(el, data, ymin, ymax, color, labels) {
+  const w = 792, h = 220, pl=44, pr=16, pt=16, pb=36;
+  const iw = w-pl-pr, ih = h-pt-pb;
+  const ds = downsample(data);
+  const pts = ds.map((p, i) => {
+    const x = pl + (i / Math.max(1, ds.length-1)) * iw;
+    const y = pt + (1 - (p.v - ymin) / (ymax - ymin || 1)) * ih;
+    return {x,y};
+  });
+  const dLine = "M " + pts.map(p => p.x.toFixed(1)+","+p.y.toFixed(1)).join(" L ");
+  const base = pt+ih;
+  const dFill = dLine + ` L ${pts.at(-1).x.toFixed(1)},${base} L ${pts[0].x.toFixed(1)},${base} Z`;
+  let grid = "";
+  for (let t=0;t<=4;t++) {
+    const val = ymin + (ymax-ymin)*t/4;
+    const y = pt + (1-t/4)*ih;
+    grid += `<line x1="${pl}" y1="${y}" x2="${w-pr}" y2="${y}" stroke="#E4E4E41F"/><text x="${pl-6}" y="${y+3}" text-anchor="end" class="tick">${val>=100?val.toFixed(0):val.toFixed(1)}</text>`;
+  }
+  let xt = "";
+  const step = Math.max(1, Math.floor(ds.length/7));
+  ds.forEach((p,i) => {
+    if (i%step && i!==ds.length-1) return;
+    const lab = labels ? labels[p.src] : String(p.src);
+    xt += `<text x="${pts[i].x.toFixed(1)}" y="${h-8}" text-anchor="middle" class="tick">${lab}</text>`;
+  });
+  el.innerHTML = `<svg class="chart" viewBox="0 0 ${w} ${h}"><path d="${dFill}" fill="${color}" fill-opacity="0.18"/>${grid}<path d="${dLine}" fill="none" stroke="${color}" stroke-width="2"/>${pts.map(p=>`<circle cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="2.1" fill="${color}"/>`).join("")}${xt}</svg>`;
+}
+function vbar(el, cats, data, color) {
+  const w=380,h=200,pl=40,pr=12,pt=16,pb=36;
+  const n=cats.length, gap=12, iw=w-pl-pr, bw=(iw-gap*(n-1))/n, mx=Math.max(1,...data)*1.12, ih=h-pt-pb;
+  let s = `<svg class="chart" viewBox="0 0 ${w} ${h}">`;
+  cats.forEach((c,i) => {
+    const bh = (data[i]/mx)*ih, x=pl+i*(bw+gap), y=pt+ih-bh;
+    s += `<rect x="${x}" y="${y}" width="${bw}" height="${bh}" rx="3" fill="${color}"/><text x="${x+bw/2}" y="${h-10}" text-anchor="middle" class="tick">${c}</text><text x="${x+bw/2}" y="${y-4}" text-anchor="middle" class="tick">${data[i]}</text>`;
+  });
+  el.innerHTML = s + "</svg>";
+}
+function hbar(el, cats, data) {
+  const w=792, h=Math.max(160, cats.length*28), pl=168, pr=56, pt=8, pb=8;
+  const row = (h-pt-pb)/cats.length, mx=Math.max(1,...data)*1.05;
+  let s = `<svg class="chart" viewBox="0 0 ${w} ${h}">`;
+  cats.forEach((c,i) => {
+    const y=pt+i*row+4, bh=row-8, bw=(data[i]/mx)*(w-pl-pr), col=COLORS.seq[i%COLORS.seq.length];
+    s += `<text x="${pl-8}" y="${y+bh*0.7}" text-anchor="end" class="tick">${c}</text><rect x="${pl}" y="${y}" width="${bw}" height="${bh}" rx="3" fill="${col}"/><text x="${pl+bw+6}" y="${y+bh*0.7}" class="tick">${data[i].toLocaleString()}</text>`;
+  });
+  el.innerHTML = s + "</svg>";
+}
+function table(el, headers, rows, align) {
+  align = align || headers.map(()=>"left");
+  const th = headers.map((h,i)=>`<th style="text-align:${align[i]}">${h}</th>`).join("");
+  const body = rows.map((r,i)=>`<tr class="${i%2?"stripe":""}">${r.map((c,j)=>`<td style="text-align:${align[j]}">${c}</td>`).join("")}</tr>`).join("");
+  el.innerHTML = `<table><thead><tr>${th}</tr></thead><tbody>${body}</tbody></table>`;
+}
+function usage(el, left, right, frac, color) {
+  const pct = Math.max(0, Math.min(100, frac*100));
+  el.innerHTML = `<div class="usage-lab"><span>${left}</span><span>${right}</span></div><div class="usage-track"><div class="usage-fill" style="width:${pct.toFixed(1)}%;background:${color}"></div></div>`;
+}
+function mean(a){ return a.length ? a.reduce((x,y)=>x+y,0)/a.length : 0; }
+function pctile(a,p){ if(!a.length) return 0; const s=[...a].sort((x,y)=>x-y); return s[Math.min(s.length-1, Math.round(p/100*(s.length-1)))]; }
+
+function milestones(pts) {
+  if (!pts.length) return [];
+  const last = pts[pts.length-1].step;
+  const want = [10,50,100,200,500];
+  for (let s=1000; s<=last; s+=500) want.push(s);
+  want.push(last);
+  const seen = new Set();
+  const out = [];
+  for (const w of want) {
+    let best = pts[0], bd = 1e18;
+    for (const p of pts) { const d=Math.abs(p.step-w); if(d<bd){bd=d;best=p;} }
+    if (seen.has(best.step)) continue;
+    seen.add(best.step);
+    out.push(best);
+  }
+  return out;
+}
+
+function setPill(el, text, kind) {
+  el.className = "pill" + (kind ? " pill-"+kind : "");
+  el.textContent = text;
+}
+
+function render() {
+  const pts = S.points;
+  const last = S.last || (pts.length ? pts[pts.length-1] : null);
+  const cfg = S.config || {};
+  const running = S.status === "running";
+  setPill(document.getElementById("pill-run"), S.status, running ? "ok" : S.status==="done" ? "info" : S.status==="stale" ? "warn" : "");
+  document.getElementById("subhead").textContent =
+    (S.train_start ? `Started ${S.train_start}. ` : "") +
+    (S.chat_until ? `Stop ${S.chat_until}. ` : "") +
+    (S.batch ? `batch ${S.batch}. ` : "") +
+    (S.threads ? `${S.threads} threads. ` : "") +
+    `seq ${S.seq || cfg.max_seq_len || 1024}. Follow checkpoints/train.log — do not paste tqdm.`;
+
+  if (last) {
+    const tokens = last.step * (S.batch_size||4) * (S.seq||1024);
+    const tpsAll = pts.map(p=>p.tps);
+    document.getElementById("s-step").textContent = last.step.toLocaleString();
+    document.getElementById("s-loss").textContent = last.loss.toFixed(3);
+    document.getElementById("s-ppl").textContent = last.ppl.toFixed(0);
+    document.getElementById("s-left").textContent = last.left >= 60 ? (last.left/60).toFixed(1)+"h" : last.left.toFixed(0)+"m";
+    document.getElementById("s-tok").textContent = fmt(tokens);
+    document.getElementById("s-tps").textContent = fmt(last.tps);
+    document.getElementById("s-tpsm").textContent = fmt(mean(tpsAll));
+    document.getElementById("s-rss").textContent = last.rss.toFixed(2)+" GB";
+    const wallUsed = S.left0 ? (S.left0 - last.left) : 0;
+    usage(document.getElementById("u-wall"),
+      `Wall-clock budget ${S.left0?((wallUsed/S.left0)*100).toFixed(0):0}% used`,
+      `${wallUsed.toFixed(0)} min elapsed · ${last.left.toFixed(0)} min left of ${S.left0.toFixed(0)} min`,
+      S.left0 ? wallUsed/S.left0 : 0, "#7BAFE9");
+    const spe = S.steps_per_epoch || 9851;
+    const epochPos = last.step % spe;
+    const epochN = Math.floor(last.step / spe) + 1;
+    usage(document.getElementById("u-epoch"),
+      `Epoch ${epochN} of 64 — ${((epochPos/spe)*100).toFixed(0)}% of packed batches`,
+      `${last.step.toLocaleString()} / ${spe.toLocaleString()} steps this epoch`,
+      epochPos/spe, "#3FA266");
+    const wu = S.warmup_steps || 18914;
+    usage(document.getElementById("u-warm"),
+      `LR warmup ${Math.min(100,(last.step/wu)*100).toFixed(0)}% (cosine after this)`,
+      `${last.step.toLocaleString()} / ${wu.toLocaleString()} warmup steps · LR ${sci(last.lr)}`,
+      Math.min(1, last.step/wu), "#DD7F76");
+
+    const losses = pts.map(p=>p.loss);
+    const ppls = pts.map(p=>p.ppl);
+    const tps = pts.map(p=>p.tps);
+    const labs = pts.map(p => p.step>=1000 ? (p.step/1000).toFixed(p.step%1000?1:0)+"k" : String(p.step));
+    if (losses.length>=2) {
+      lineChart(document.getElementById("c-loss"), losses, Math.min(4.5, Math.min(...losses)-0.1), Math.max(...losses), COLORS.info, labs);
+      const from = pts.findIndex(p=>p.step>=1000);
+      const pplSlice = from>=0 ? ppls.slice(from) : ppls;
+      const pplLabs = from>=0 ? labs.slice(from) : labs;
+      const pmin = Math.min(...pplSlice), pmax = Math.max(...pplSlice);
+      lineChart(document.getElementById("c-ppl"), pplSlice, Math.max(0,pmin*0.9), pmax, COLORS.warn, pplLabs);
+      lineChart(document.getElementById("c-tps"), tps, Math.min(3000, Math.min(...tps)*0.9), Math.max(...tps)*1.05, COLORS.ok, labs);
+    }
+    document.getElementById("best-ppl").textContent = S.best ? S.best.ppl.toFixed(1) + " @ step " + S.best.step : "—";
+    const miles = milestones(pts);
+    table(document.getElementById("t-miles"),
+      ["Step","Loss","PPL","LR","Tau","tok/s","u","Left (min)"],
+      miles.map(p=>[p.step.toLocaleString(), p.loss.toFixed(3), p.ppl.toFixed(1), sci(p.lr), p.tau.toFixed(2), p.tps.toFixed(0), p.u.toFixed(2), p.left.toFixed(0)]),
+      Array(8).fill("right"));
+    const last10 = losses.slice(-10), last50=losses.slice(-50), last100=losses.slice(-100);
+    document.getElementById("roll").innerHTML = `Last 10 logs: ${mean(last10).toFixed(2)}<br>Last 50 logs: ${mean(last50).toFixed(2)}<br>Last 100 logs: ${mean(last100).toFixed(2)}<br><span class="muted">Best logged: ${S.best?S.best.loss.toFixed(3)+" @ step "+S.best.step:"—"}</span>`;
+    document.getElementById("dist").innerHTML = `Min ${Math.min(...losses).toFixed(3)} · max ${Math.max(...losses).toFixed(3)}<br>Mean ${mean(losses).toFixed(2)} · median ${pctile(losses,50).toFixed(2)}<br>P10 ${pctile(losses,10).toFixed(2)} · P90 ${pctile(losses,90).toFixed(2)}<br><span class="muted">Drop from start: ${(losses[0]-losses.at(-1)).toFixed(2)} CE</span>`;
+    document.getElementById("sched").innerHTML = `Until ${S.until||S.chat_until||"—"}<br>Phase ${S.phase||"—"} · ${S.batch}<br>τ ${last.tau.toFixed(2)} · u ${last.u.toFixed(3)}<br><span class="muted">channelite ${last.cite} · ${last.ch}</span>`;
+    table(document.getElementById("t-tps"), ["Metric","Value"], [
+      ["Min tok/s", Math.min(...tps).toFixed(0)],
+      ["Median", pctile(tps,50).toFixed(0)],
+      ["Mean", mean(tps).toFixed(0)],
+      ["P90", pctile(tps,90).toFixed(0)],
+      ["Max", Math.max(...tps).toFixed(0)],
+      ["Last 30 logs", mean(tps.slice(-30)).toFixed(0)],
+      ["Last log", last.tps.toFixed(0)],
+    ], ["left","right"]);
+    vbar(document.getElementById("c-cite"), ["cite 0","cite 1","cite 2","cite 3"], S.cites||[0,0,0,0], COLORS.info);
+    const topCh = Object.entries(S.ch_top||{}).sort((a,b)=>b[1]-a[1])[0];
+    table(document.getElementById("t-route"), ["Stat","Value"], [
+      ["u last", last.u.toFixed(3)],
+      ["Top channel last 80", topCh ? `ch ${topCh[0]} on ${topCh[1]}/80` : "—"],
+      ["Last window channels", last.ch],
+      ["Last channelite", String(last.cite)],
+      ["Points logged", String(pts.length)],
+    ]);
+    document.getElementById("route-note").textContent = last.tau > 0.5 ? "Collapse onto one channelite is expected this early while tau is high." : "Tau is lower; routing should spread if load-balance is working.";
+    const title = running ? "Healthy descent, still training" : S.status==="done" ? "Run finished" : "Training status";
+    const body = last
+      ? `Assistant-token loss ${last.loss.toFixed(3)} / ppl ${last.ppl.toFixed(1)} at step ${last.step.toLocaleString()}. ${S.best?`Best ${S.best.loss.toFixed(3)} at ${S.best.step}. `:""}τ=${last.tau.toFixed(2)} LR=${sci(last.lr)}.`
+      : "Waiting for the first logged step.";
+    document.getElementById("callout-t").textContent = title;
+    document.getElementById("callout-b").textContent = body;
+  }
+  document.getElementById("logbox").textContent = (S.lines||[]).join("\n") || "no log lines yet";
+  if (S.params) document.getElementById("a-params").textContent = fmt(S.params);
+  const L = cfg.n_layers ?? 8, C = cfg.n_channelites ?? 64, N = cfg.n_channels ?? 512;
+  document.getElementById("a-lcc").textContent = `${L} / ${C} / ${N}`;
+
+  table(document.getElementById("t-ckpt"), ["File","Size","Updated"], [
+    [S.ckpt ? S.ckpt.path.split(/[/\\]/).pop() : "hcrm_slm.pt",
+     S.ckpt ? (S.ckpt.bytes/1e6).toFixed(1)+" MB" : "—",
+     S.ckpt ? new Date(S.ckpt.mtime*1000).toLocaleTimeString() : "—"]
+  ]);
+  table(document.getElementById("t-knob"), ["Knob","Value"], [
+    ["Params", (S.params||499988737).toLocaleString()],
+    ["d_model / layers", `${cfg.d_model??512} / ${cfg.n_layers??8}`],
+    ["Channelites / channels", `${cfg.n_channelites??64} / ${cfg.n_channels??512}`],
+    ["d_ff", String(cfg.d_ff??896)],
+    ["Vocab", String(cfg.vocab_size??49152)],
+    ["Context", String(S.seq||cfg.max_seq_len||2048)],
+    ["RoPE / GRU / conv", `${cfg.use_rope!==false?"on":"off"} / ${cfg.use_gru?"on":"off"} / k=${cfg.conv_kernel??7} d=${cfg.conv_dilation??2}`],
+    ["top_k", String(cfg.top_k??8)],
+  ]);
+  const dev = S.device || (S.threads ? `CPU, ${S.threads} threads` : "L40S CUDA");
+  table(document.getElementById("t-train"), ["Train","Value"], [
+    ["Device", S.amp ? `${dev}  amp=${S.amp}` : dev],
+    ["Batch × accum", S.batch || "4×4"],
+    ["Packed sequences", (S.packs||0).toLocaleString()],
+    ["Steps / epoch", (S.steps_per_epoch||0).toLocaleString()],
+    ["Until", S.until || S.chat_until || "—"],
+    ["Skip GSM8K tail", S.skip_reason ? "yes" : "—"],
+  ]);
+}
+
+function staticTables() {
+  table(document.getElementById("t-arch-fwd"), ["Stage","What runs","Shape / cost on this run"], [
+    ["1. Embed","Embedding(~49152, 512), pad zeroed","B×T×512 · ~25.2M weights, tied to LM head"],
+    ["2. RoPE","Rotate even/odd pairs, theta base 10,000","T=2048, d=512 even · no trainable params"],
+    ["3. Block × 8","x += 0.5·Mix(RMSNorm(x)); then x += 0.5·Channels(RMSNorm(x), gates)","Shared router + 512-row channel bank; dropout 0.05"],
+    ["4. Final RMSNorm + head","RMSNorm then Linear(512 → vocab, bias=False) = embed.weight","Logits B×T×vocab, CE chunked 256"],
+  ]);
+  table(document.getElementById("t-block"), ["Branch","Equation (this code)","Notes"], [
+    ["Local mix","x += 0.5 * CausalLocalMix(RMSNorm(x))","Depthwise conv k=7, dilation=2, gated linear, GRU off"],
+    ["Route","gates, stats = HierarchicalRouter(RMSNorm(x), tau)","Train: dense softmax over 512 channels. Infer: top-8 sparse"],
+    ["Channel memory","x += 0.5 * ChannelBank(h, gates)","Per-channel SiLU FFN d→896→d, grouped einsum 32"],
+  ]);
+  table(document.getElementById("t-mix"), ["Piece","Detail"], [
+    ["Type","Depthwise Conv1d, groups = d_model = 512"],
+    ["Kernel / dilation","7 / 2"],
+    ["Causal pad","left pad = dilation × (k−1) = 12"],
+    ["Receptive field","1 + 2×6 = 13 tokens per layer"],
+    ["Gate","h = conv(x) ⊙ sigmoid(W_gate x)"],
+    ["GRU","Off on this run"],
+    ["Complexity","O(T · d · k)"],
+  ]);
+  table(document.getElementById("t-router"), ["Symbol","This run","Role"], [
+    ["u","sigmoid(Linear d→1)","1-D locality index"],
+    ["Channelites","64","Coarse buckets; 8 channels each"],
+    ["Channels","512, ordered rows 0…511","Fine FFN specialists"],
+    ["Map","cite 0→ch 0–7 … 63→504–511","repeat_interleave"],
+    ["tau train","1.2 → 0.3 over wall clock","Softmax temperature"],
+    ["tau infer","0.1","Peakier routing at chat"],
+    ["top_k","8","Inference only"],
+  ]);
+  table(document.getElementById("t-bank"), ["Tensor","Shape","Params"], [
+    ["W1","512 × 512 × 896","234,881,024"],
+    ["b1","512 × 896","458,752"],
+    ["W2","512 × 896 × 512","234,881,024"],
+    ["b2","512 × 512","262,144"],
+    ["Bank total","shared by 8 layers","470,482,944"],
+  ], ["left","left","right"]);
+  table(document.getElementById("t-exec"), ["Exec trick","This run"], [
+    ["channel_chunk","512 tokens of the 2048 window"],
+    ["channel_group","32 channels per einsum (required on 48GB)"],
+    ["ce_chunk","256 — chunked vocab CE"],
+    ["grad_checkpoint","on — recompute each block"],
+    ["AMP","bf16 on L40S, fp32 master weights"],
+    ["Train mix","Dense gates over all 512 FFNs"],
+    ["Infer mix","Only top-8 FFNs contribute"],
+  ]);
+  hbar(document.getElementById("c-params"),
+    ["Channel bank 512×FFN","Tied embed ~49k×512","Local mix ×8","Router","RMSNorms"],
+    [470482944,25165824,4235264,296001,8704]);
+  table(document.getElementById("t-lossmask"), ["Token / field","Use"], [
+    ["bos + system turn","Always first; “You are Creak…”; not trained"],
+    ["user turn + end","Prompt; not trained"],
+    ["assistant turn + end","Train target, including that end marker"],
+    ["think / /think","Every assistant reply (math/CoT upsampled)"],
+    ["CE ignore_index","−100"],
+    ["Aux load-balance","0.005 × C × sum(usage²)"],
+    ["Aux locality","0.0 this run"],
+  ]);
+  hbar(document.getElementById("c-corpus"), CORPUS.map(r=>r[0]), CORPUS.map(r=>r[1]));
+  table(document.getElementById("t-corpus"), ["Source","Rows","Share","Role"], CORPUS.map(r=>[r[0], r[1].toLocaleString(), r[2], r[3]]), ["left","right","right","left"]);
+}
+
+function applyHello(state) {
+  S = Object.assign(S, state);
+  S.points = state.points || [];
+  render();
+}
+function applySteps(msg) {
+  const incoming = msg.points || [];
+  const seen = new Set(S.points.map(p => p.step));
+  for (const p of incoming) {
+    if (!seen.has(p.step)) { S.points.push(p); seen.add(p.step); }
+  }
+  S.last = msg.last || S.points.at(-1);
+  S.status = msg.status || S.status;
+  S.best = msg.best || S.best;
+  S.cites = msg.cites || S.cites;
+  S.ch_top = msg.ch_top || S.ch_top;
+  S.ckpt = msg.ckpt || S.ckpt;
+  S.lines = msg.lines || S.lines;
+  render();
+}
+
+let ws, paint;
+function connect() {
+  const proto = location.protocol === "https:" ? "wss" : "ws";
+  ws = new WebSocket(`${proto}://${location.host}/ws`);
+  ws.onopen = () => setPill(document.getElementById("pill-ws"), "ws live", "ok");
+  ws.onclose = () => {
+    setPill(document.getElementById("pill-ws"), "ws reconnecting", "warn");
+    setTimeout(connect, 1000);
+  };
+  ws.onerror = () => ws.close();
+  ws.onmessage = (ev) => {
+    const msg = JSON.parse(ev.data);
+    if (msg.type === "hello") applyHello(msg.state);
+    else if (msg.type === "steps" || msg.type === "step") applySteps(msg);
+  };
+}
+
+staticTables();
+fetch("/api/state").then(r=>r.json()).then(applyHello).catch(()=>{}).finally(connect);
+</script>
+</body>
+</html>
