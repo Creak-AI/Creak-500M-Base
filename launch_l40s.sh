@@ -9,7 +9,7 @@ export OMP_NUM_THREADS="${OMP_NUM_THREADS:-8}"
 export HF_HOME="${HF_HOME:-$PWD/.cache/huggingface}"
 
 # Optional first arg: total minutes (default 300 = 5 hours), including data prep.
-MAX_MINUTES="${1:-300}"
+MAX_MINUTES="${1:-280}"
 
 python - <<'PY'
 import torch
